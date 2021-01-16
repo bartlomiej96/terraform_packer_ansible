@@ -1,4 +1,4 @@
-# Ansible | Packer | Terraform 
+# Terraform  | Packer | Ansible
 
 [1. Introduction and repository purpose](#1-introduction-and-repository-purpose)
 
