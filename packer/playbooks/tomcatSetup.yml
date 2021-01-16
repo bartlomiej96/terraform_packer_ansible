@@ -1,0 +1,84 @@
+---
+- name: Tomcat setup
+  hosts: all
+  remote_user: ec2-user
+  become: yes
+  gather_facts: true
+
+  tasks:
+  - name: Pre requisite packages
+    yum:
+      name:
+        - tar
+        - java-1.8.0-openjdk
+      state: latest
+
+  - name: Add tomcat group
+    group:
+      name: tomcat
+
+  - name: Add tomcat user
+    user:
+      name: tomcat
+      group: tomcat
+      home: /user/share/tomcat
+      createhome: no
+
+  - name: Create tomcat directory
+    file:
+      path: /opt/tomcat
+      state: directory
+      mode: 0755
+
+  - name: Download & Unarchive tomcat
+    unarchive:
+      src: https://apache.mirrors.tworzy.net/tomcat/tomcat-9/v9.0.41/bin/apache-tomcat-9.0.41.tar.gz
+      dest: /opt/tomcat
+      remote_src: yes
+      extra_opts: [--strip-components=1]
+
+  - name: Download sample.war
+    get_url:
+      url: https://tomcat.apache.org/tomcat-7.0-doc/appdev/sample/sample.war
+      dest: /opt/tomcat/webapps
+
+  - name: Change ownership
+    file:
+      path: /opt/tomcat
+      owner: tomcat
+      group: tomcat
+      mode: "u+rwx,g+rx,o=rx"
+      recurse: yes
+      state: directory
+
+  - name: Create service file
+    copy:
+      dest: /etc/systemd/system/tomcat.service
+      content: |
+        [Unit]
+        Description=Tomcat9
+        After=network.target
+
+        [Service]
+        Type=forking
+        SuccessExitStatus=143
+
+        Environment=CATALINA_PID=/opt/tomcat/tomcat9.pid
+        Environment=JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.272.b10-1.amzn2.0.1.x86_64/jre
+        Environment=CATALINA_HOME=/opt/tomcat
+        Environment=CATALINA_BASE=/opt/tomcat
+        Environment="CATALINA_OPTS=-Xms512m -Xmx512m"    # optional
+        Environment="JAVA_OPTS=-Dfile.encoding=UTF-8"    # optional
+        ExecStart=/opt/tomcat/bin/startup.sh
+        ExecStop=/opt/tomcat/bin/shutdown.sh
+
+        [Install]
+        WantedBy=multi-user.target
+
+  - name: Start and enable Tomcat service
+    systemd:
+      name: tomcat
+      state: started
+      enabled: true
+      daemon_reload: true
+
